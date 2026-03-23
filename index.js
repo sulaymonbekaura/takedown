@@ -4,37 +4,32 @@ import simpleGit from "simple-git";
 import random from "random";
 
 const path = "./data.json";
+const git = simpleGit(); // simpleGit instance
 
-const markCommit = (x, y) => {
-  const date = moment()
-    .subtract(1, "y")
-    .add(1, "d")
-    .add(x, "w")
-    .add(y, "d")
-    .format();
+// Bitta commit yaratish va push qilish
+const createCommit = async (date) => {
+  const data = { date };
+  jsonfile.writeFileSync(path, data);
 
-  const data = {
-    date: date,
-  };
-
-  jsonfile.writeFile(path, data, () => {
-    simpleGit().add([path]).commit(date, { "--date": date }).push();
-  });
+  await git.add([path])
+           .commit(date, { "--date": date })
+           .push("origin", "main"); // 'main' branch ga push qiladi
 };
 
-const makeCommits = (n) => {
-  if(n===0) return simpleGit().push();
-  const x = random.int(0, 54);
-  const y = random.int(0, 6);
-  const date = moment().subtract(1, "y").add(1, "d").add(x, "w").add(y, "d").format();
+// Commitlarni yaratish (async rekursiya)
+const makeCommits = async (n) => {
+  if (n === 0) return;
 
-  const data = {
-    date: date,
-  };
-  console.log(date);
-  jsonfile.writeFile(path, data, () => {
-    simpleGit().add([path]).commit(date, { "--date": date },makeCommits.bind(this,--n));
-  });
+  const x = random.int(0, 54 * 6); // 6 yil uchun haftalar
+  const y = random.int(0, 6);      // haftaning kuni
+  const date = moment("2020-01-01").add(x, "w").add(y, "d").format();
+
+  console.log("Creating commit:", date);
+  await createCommit(date);
+  await makeCommits(n - 1);
 };
 
-makeCommits(100);
+// Masalan, 100 commit yaratish
+makeCommits(100)
+  .then(() => console.log("All commits pushed!"))
+  .catch((err) => console.error("Error:", err));
