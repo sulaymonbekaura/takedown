@@ -1,35 +1,42 @@
+import fs from "fs";
 import jsonfile from "jsonfile";
-import moment from "moment";
 import simpleGit from "simple-git";
-import random from "random";
+import moment from "moment";
 
+const git = simpleGit();
 const path = "./data.json";
-const git = simpleGit(); // simpleGit instance
 
-// Bitta commit yaratish va push qilish
-const createCommit = async (date) => {
-  const data = { date };
-  jsonfile.writeFileSync(path, data);
+const startDate = moment().subtract(1, "year").add(1, "day"); // 1 yil oldin bugundan keyingi kun
+const endDate = moment(); // bugungi sana
 
-  await git.add([path])
-           .commit(date, { "--date": date })
-           .push("origin", "main"); // 'main' branch ga push qiladi
+// Kunlar oralig'ini olish
+const getDatesBetween = (start, end) => {
+  const dates = [];
+  let curr = start.clone();
+  while (curr.isSameOrBefore(end, "day")) {
+    dates.push(curr.format());
+    curr.add(1, "day");
+  }
+  return dates;
 };
 
-// Commitlarni yaratish (async rekursiya)
-const makeCommits = async (n) => {
-  if (n === 0) return;
+const dates = getDatesBetween(startDate, endDate);
 
-  const x = random.int(0, 54 * 6); // 6 yil uchun haftalar
-  const y = random.int(0, 6);      // haftaning kuni
-  const date = moment("2020-01-01").add(x, "w").add(y, "d").format();
+// Har kuni 1 ta commit qilish uchun async funktsiya
+const makeDailyCommits = async () => {
+  for (const date of dates) {
+    // data.json faylga sanani yozamiz
+    jsonfile.writeFileSync(path, { date });
 
-  console.log("Creating commit:", date);
-  await createCommit(date);
-  await makeCommits(n - 1);
+    // git add, commit (sanasi ko'rsatilgan), push
+    await git.add([path])
+             .commit(date, { "--date": date })
+             .push("origin", "main"); // branch nomi kerak bo'lsa o'zgartiring
+
+    console.log(`Committed for date: ${date}`);
+  }
 };
 
-// Masalan, 100 commit yaratish
-makeCommits(100)
-  .then(() => console.log("All commits pushed!"))
-  .catch((err) => console.error("Error:", err));
+makeDailyCommits()
+  .then(() => console.log("All daily commits pushed!"))
+  .catch(err => console.error(err));
