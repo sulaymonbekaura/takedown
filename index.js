@@ -6,37 +6,39 @@ import moment from "moment";
 const git = simpleGit();
 const path = "./data.json";
 
-const startDate = moment().subtract(1, "year").add(1, "day"); // 1 yil oldin bugundan keyingi kun
-const endDate = moment(); // bugungi sana
-
-// Kunlar oralig'ini olish
-const getDatesBetween = (start, end) => {
+// 1 yil ichidagi barcha kunlarni olish
+const getDates = () => {
   const dates = [];
-  let curr = start.clone();
-  while (curr.isSameOrBefore(end, "day")) {
-    dates.push(curr.format());
-    curr.add(1, "day");
+  let start = moment().subtract(1, "year");
+  let end = moment();
+
+  while (start.isSameOrBefore(end)) {
+    dates.push(start.clone().format());
+    start.add(1, "day");
   }
+
   return dates;
 };
 
-const dates = getDatesBetween(startDate, endDate);
+const makeCommitsFast = async () => {
+  const dates = getDates();
 
-// Har kuni 1 ta commit qilish uchun async funktsiya
-const makeDailyCommits = async () => {
   for (const date of dates) {
-    // data.json faylga sanani yozamiz
-    jsonfile.writeFileSync(path, { date });
+    // har kuni 5 ta commit (ko‘proq qilish mumkin)
+    for (let i = 0; i < 5; i++) {
+      jsonfile.writeFileSync(path, { date, i });
 
-    // git add, commit (sanasi ko'rsatilgan), push
-    await git.add([path])
-             .commit(date, { "--date": date })
-             .push("origin", "main"); // branch nomi kerak bo'lsa o'zgartiring
+      await git.add([path]);
+      await git.commit(date, { "--date": date });
+    }
 
-    console.log(`Committed for date: ${date}`);
+    console.log("Done:", date);
   }
+
+  // 🔥 faqat oxirida 1 marta push
+  await git.push("origin", "main");
+
+  console.log("🚀 ALL COMMITS PUSHED!");
 };
 
-makeDailyCommits()
-  .then(() => console.log("All daily commits pushed!"))
-  .catch(err => console.error(err));
+makeCommitsFast();
